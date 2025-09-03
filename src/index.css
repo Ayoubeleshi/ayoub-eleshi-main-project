@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Professional Team Platform Design System */
+
+@layer base {
+  :root {
+    /* Core Brand Colors */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    
+    /* Brand Primary - Rich Purple (inspired by screenshot) */
+    --primary: 259 94% 51%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 259 94% 58%;
+    --primary-dark: 259 94% 45%;
+    
+    /* Brand Secondary - Professional Blue */
+    --secondary: 219 78% 58%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-light: 219 78% 65%;
+    
+    /* Surface Colors */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --surface: 220 14% 96%;
+    --surface-hover: 220 14% 93%;
+    
+    /* Interactive States */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 219 78% 95%;
+    --accent-foreground: 219 78% 15%;
+    
+    /* Semantic Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* UI Elements */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 219 78% 58%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Gradients */
+    --gradient-brand: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+    --gradient-surface: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 14% 98%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.8), hsl(220 14% 98% / 0.9));
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 4px hsl(var(--primary) / 0.05);
+    --shadow-md: 0 4px 12px hsl(var(--primary) / 0.1);
+    --shadow-lg: 0 8px 24px hsl(var(--primary) / 0.15);
+    --shadow-brand: 0 8px 32px hsl(var(--primary) / 0.2);
+    
+    /* Spacing & Layout */
+    --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 1rem;
+    
+    /* Sidebar Variables - Light Mode */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 259 94% 51%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 259 94% 51%;
+  }
+
+  .dark {
+    /* Core Colors - Dark Mode */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    
+    /* Brand Colors - Dark Mode */
+    --primary: 259 94% 58%;
+    --primary-foreground: 222 47% 11%;
+    --primary-light: 259 94% 65%;
+    --primary-dark: 259 94% 51%;
+    
+    --secondary: 219 78% 65%;
+    --secondary-foreground: 222 47% 11%;
+    --secondary-light: 219 78% 70%;
+    
+    /* Surface Colors - Dark Mode */
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --surface: 217 32% 17%;
+    --surface-hover: 217 32% 20%;
+    
+    /* Interactive States - Dark Mode */
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 219 78% 15%;
+    --accent-foreground: 219 78% 85%;
+    
+    /* Semantic Colors - Dark Mode */
+    --success: 142 76% 45%;
+    --success-foreground: 222 47% 11%;
+    --warning: 38 92% 55%;
+    --warning-foreground: 222 47% 11%;
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 222 47% 11%;
+    
+    /* UI Elements - Dark Mode */
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 219 78% 65%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Gradients - Dark Mode */
+    --gradient-brand: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)));
+    --gradient-surface: linear-gradient(135deg, hsl(222 47% 11%), hsl(217 32% 15%));
+    --gradient-card: linear-gradient(135deg, hsl(222 47% 11% / 0.8), hsl(217 32% 17% / 0.9));
+    
+    /* Shadows - Dark Mode */
+    --shadow-sm: 0 2px 4px hsl(var(--primary) / 0.1);
+    --shadow-md: 0 4px 12px hsl(var(--primary) / 0.15);
+    --shadow-lg: 0 8px 24px hsl(var(--primary) / 0.2);
+    --shadow-brand: 0 8px 32px hsl(var(--primary) / 0.3);
+    
+    /* Sidebar Variables - Dark Mode */
+    --sidebar-background: 217 32% 15%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 259 94% 58%;
+    --sidebar-primary-foreground: 217 32% 15%;
+    --sidebar-accent: 217 32% 20%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 32% 17%;
+    --sidebar-ring: 259 94% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Custom Animations */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+
+  /* Line clamp utility */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
