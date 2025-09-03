@@ -19,7 +19,7 @@ export const useChannels = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Channel[];
+      return data as Channel[];y
     },
     enabled: !!profile?.organization_id,
   });
