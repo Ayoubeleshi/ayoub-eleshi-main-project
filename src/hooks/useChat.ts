@@ -19,7 +19,7 @@ export const useChannels = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Channel[];y
+      return data as Channel[];
     },
     enabled: !!profile?.organization_id,
   });
@@ -269,7 +269,7 @@ export const useChatRealtime = (channelId?: string, userId?: string) => {
 
   // Return the expected object structure for ChatHeader
   return {
-    connectionStatus: 'connected' as const,
+    connectionStatus: 'connected' as 'connected' | 'connecting' | 'disconnected' | 'error',
     useFallback: false,
     retryCount: 0,
     maxRetries: 5,
