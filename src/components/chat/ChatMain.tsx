@@ -103,11 +103,6 @@ const ChatMain: React.FC<ChatMainProps> = ({
 
       {/* Messages - Takes up remaining space */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        {/* Version indicator */}
-        <div className="text-xs text-muted-foreground px-4 py-1 bg-muted/20">
-          🚀 Version: Latest Deploy Test - {new Date().toLocaleTimeString()}
-        </div>
-        
         {currentChannel && (
           <MessageList channelId={currentChannel.id} />
         )}
