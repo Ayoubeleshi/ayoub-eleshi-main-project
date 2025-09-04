@@ -97,10 +97,11 @@ const MessageList: React.FC<MessageListProps> = ({ channelId, userId }) => {
   return (
     <ScrollArea className="h-full w-full" ref={scrollRef}>
       <div 
-        className="flex flex-col px-2 py-1"
+        className="flex flex-col px-2 py-1 justify-end min-h-full"
         style={{ 
           display: 'flex', 
-          flexDirection: 'column'
+          flexDirection: 'column',
+          minHeight: '100%'
         }}
       >
         {Object.entries(groupedMessages).map(([date, dateMessages]) => (
