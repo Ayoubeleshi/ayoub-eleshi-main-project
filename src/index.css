@@ -193,4 +193,11 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.5);
   }
+
+  /* Chat message list - bottom to top flow like Slack */
+  [data-radix-scroll-area-viewport] {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+  }
 }
