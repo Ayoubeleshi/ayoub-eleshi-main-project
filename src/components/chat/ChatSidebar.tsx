@@ -33,7 +33,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChannels, useOrganizationUsers } from '@/hooks/useChat';
 import { cn } from '@/lib/utils';
 import CreateChannelModal from './CreateChannelModal';
-import { useAllUnreadCounts } from '@/hooks/useUnreadMessages';
 
 import { Channel, ChatUser } from '../../types/chat';
 import { ChatView } from './ChatLayout';
@@ -84,18 +83,15 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   
-  // Get unread counts for all channels and DMs
-  const { data: unreadCounts = { channels: {}, dms: {} } } = useAllUnreadCounts();
-  
   // Convert real channels to categories using useMemo to prevent infinite loops
   const realChannels = React.useMemo(() => channels.map(channel => ({
     id: channel.id,
     name: channel.name,
     description: channel.description,
     isPrivate: channel.is_private,
-    unreadCount: unreadCounts.channels[channel.id] || 0,
+    unreadCount: 0, // TODO: Add unread count logic
     isMuted: false
-  })), [channels, unreadCounts.channels]);
+  })), [channels]);
 
   // Create categories directly from real channels to avoid state management issues
   const categories: ChannelCategory[] = [
@@ -236,8 +232,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                           "flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-md transition-colors group",
                           currentChannel?.id === channel.id
                             ? "bg-primary text-primary-foreground"
-                            : "hover:bg-muted/50 text-muted-foreground hover:text-foreground",
-                          channel.unreadCount > 0 && "font-semibold"
+                            : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
                         )}
                       >
                         <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -246,9 +241,7 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                           ) : (
                             <Hash className="w-3 h-3 flex-shrink-0" />
                           )}
-                          <span className={cn("truncate text-xs", channel.unreadCount > 0 && "font-bold")}>
-                            {channel.name}
-                          </span>
+                          <span className="truncate text-xs">{channel.name}</span>
                         </div>
                         
                         <div className="flex items-center space-x-1">
@@ -256,8 +249,8 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                             <BellOff className="w-3 h-3 text-muted-foreground" />
                           )}
                           {channel.unreadCount > 0 && (
-                            <Badge variant="destructive" className="h-4 min-w-[16px] text-xs px-1 py-0">
-                              {channel.unreadCount > 99 ? '99+' : channel.unreadCount}
+                            <Badge variant="secondary" className="h-4 min-w-[16px] text-xs">
+                              {channel.unreadCount}
                             </Badge>
                           )}
                         </div>
@@ -311,20 +304,17 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                       user.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                       user.email.toLowerCase().includes(searchQuery.toLowerCase())
                     )
-                    .map((user) => {
-                      const userUnreadCount = unreadCounts.dms[user.id] || 0;
-                      return (
-                        <button
-                          key={user.id}
-                          onClick={() => onUserSelect(user)}
-                          className={cn(
-                            "flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-md transition-colors group",
-                            currentUser?.id === user.id
-                              ? "bg-primary text-primary-foreground"
-                              : "hover:bg-muted/50 text-muted-foreground hover:text-foreground",
-                            userUnreadCount > 0 && "font-semibold"
-                          )}
-                        >
+                    .map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => onUserSelect(user)}
+                        className={cn(
+                          "flex items-center space-x-2 w-full px-2 py-1.5 text-sm rounded-md transition-colors group",
+                          currentUser?.id === user.id
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                        )}
+                      >
                         <div className="relative">
                           <Avatar className="w-6 h-6">
                             <AvatarImage src={user.avatar_url} />
@@ -334,20 +324,12 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                           </Avatar>
                           <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 border border-background rounded-full" />
                         </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <div className={cn("text-xs truncate", userUnreadCount > 0 ? "font-bold" : "font-medium")}>
-                              {user.full_name}
-                            </div>
-                            <div className="text-xs truncate opacity-60">{user.role}</div>
-                          </div>
-                          {userUnreadCount > 0 && (
-                            <Badge variant="destructive" className="h-4 min-w-[16px] text-xs px-1 py-0">
-                              {userUnreadCount > 99 ? '99+' : userUnreadCount}
-                            </Badge>
-                          )}
-                        </button>
-                      );
-                    })}
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="text-xs font-medium truncate">{user.full_name}</div>
+                          <div className="text-xs truncate opacity-60">{user.role}</div>
+                        </div>
+                      </button>
+                    ))}
                 </div>
 
                 {/* Offline Users */}
@@ -363,40 +345,29 @@ const ChatSidebar: React.FC<ChatSidebarProps> = ({
                         user.email.toLowerCase().includes(searchQuery.toLowerCase())
                       )
                       .slice(0, 5) // Show only first 5 offline users to save space
-                      .map((user) => {
-                        const userUnreadCount = unreadCounts.dms[user.id] || 0;
-                        return (
-                          <button
-                            key={user.id}
-                            onClick={() => onUserSelect(user)}
-                            className={cn(
-                              "flex items-center justify-between w-full px-2 py-1.5 text-sm rounded-md transition-colors group",
-                              currentUser?.id === user.id
-                                ? "bg-primary text-primary-foreground"
-                                : "hover:bg-muted/50 text-muted-foreground hover:text-foreground",
-                              userUnreadCount > 0 && "font-semibold"
-                            )}
-                          >
+                      .map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => onUserSelect(user)}
+                          className={cn(
+                            "flex items-center space-x-2 w-full px-2 py-1.5 text-sm rounded-md transition-colors group",
+                            currentUser?.id === user.id
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                          )}
+                        >
                           <Avatar className="w-6 h-6">
                             <AvatarImage src={user.avatar_url} />
                             <AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">
                               {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
                             </AvatarFallback>
                           </Avatar>
-                            <div className="flex-1 min-w-0 text-left">
-                              <div className={cn("text-xs truncate", userUnreadCount > 0 ? "font-bold" : "font-medium")}>
-                                {user.full_name}
-                              </div>
-                              <div className="text-xs truncate opacity-60">{user.role}</div>
-                            </div>
-                            {userUnreadCount > 0 && (
-                              <Badge variant="destructive" className="h-4 min-w-[16px] text-xs px-1 py-0">
-                                {userUnreadCount > 99 ? '99+' : userUnreadCount}
-                              </Badge>
-                            )}
-                          </button>
-                        );
-                      })}
+                          <div className="flex-1 min-w-0 text-left">
+                            <div className="text-xs font-medium truncate">{user.full_name}</div>
+                            <div className="text-xs truncate opacity-60">{user.role}</div>
+                          </div>
+                        </button>
+                      ))}
                   </div>
                 )}
               </div>
