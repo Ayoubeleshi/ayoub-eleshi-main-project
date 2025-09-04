@@ -1578,6 +1578,36 @@ export type Database = {
           },
         ]
       }
+      user_channel_reads: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          dm_user_id: string | null
+          id: string
+          last_read_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          dm_user_id?: string | null
+          id?: string
+          last_read_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          dm_user_id?: string | null
+          id?: string
+          last_read_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_presence: {
         Row: {
           custom_status: string | null
@@ -1750,9 +1780,17 @@ export type Database = {
           owner_id: string
         }[]
       }
+      get_channel_unread_count: {
+        Args: { p_channel_id: string; p_user_id: string }
+        Returns: number
+      }
       get_current_user_organization_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_dm_unread_count: {
+        Args: { p_current_user_id: string; p_dm_user_id: string }
+        Returns: number
       }
       get_google_tokens_for_sync: {
         Args: { p_profile_id: string }
