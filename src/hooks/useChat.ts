@@ -108,13 +108,15 @@ export const useSendMessage = () => {
       channelId, 
       recipientId, 
       messageType = 'text' as const,
-      fileUrl 
+      fileUrl,
+      parentMessageId
     }: {
       content: string;
       channelId?: string;
       recipientId?: string;
       messageType?: 'text' | 'file' | 'image' | 'link';
       fileUrl?: string;
+      parentMessageId?: string;
     }) => {
       if (!profile?.id) throw new Error('No profile ID');
       
@@ -128,6 +130,7 @@ export const useSendMessage = () => {
             content,
             message_type: messageType,
             file_url: fileUrl,
+            reply_to_message_id: parentMessageId,
           })
           .select()
           .single();
@@ -144,6 +147,7 @@ export const useSendMessage = () => {
             content,
             message_type: messageType,
             file_url: fileUrl,
+            reply_to_message_id: parentMessageId,
           })
           .select()
           .single();
@@ -158,8 +162,16 @@ export const useSendMessage = () => {
       // Invalidate and refetch messages
       if (variables.channelId) {
         queryClient.invalidateQueries({ queryKey: ['channel-messages', variables.channelId] });
+        queryClient.invalidateQueries({ queryKey: ['channel-unread-count', variables.channelId] });
+        if (variables.parentMessageId) {
+          queryClient.invalidateQueries({ queryKey: ['thread-messages', variables.parentMessageId] });
+        }
       } else if (variables.recipientId) {
         queryClient.invalidateQueries({ queryKey: ['direct-messages', variables.recipientId] });
+        queryClient.invalidateQueries({ queryKey: ['dm-unread-count', variables.recipientId] });
+        if (variables.parentMessageId) {
+          queryClient.invalidateQueries({ queryKey: ['thread-messages', variables.parentMessageId] });
+        }
       }
     },
   });
@@ -386,17 +398,36 @@ export const useThreadMessages = (parentMessageId: string) => {
     queryFn: async () => {
       if (!parentMessageId) return [];
       
-      const { data, error } = await supabase
-        .from('messages')
-        .select(`
-          *,
-          sender:profiles!sender_id(id, full_name, avatar_url, email)
-        `)
-        .eq('reply_to_message_id', parentMessageId)
-        .order('created_at', { ascending: true });
+      // Get thread messages from both messages and direct_messages tables
+      const [channelThreads, dmThreads] = await Promise.all([
+        supabase
+          .from('messages')
+          .select(`
+            *,
+            sender:profiles!sender_id(id, full_name, avatar_url, email)
+          `)
+          .eq('reply_to_message_id', parentMessageId)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('direct_messages')
+          .select(`
+            *,
+            sender:profiles!sender_id(id, full_name, avatar_url, email)
+          `)
+          .eq('reply_to_message_id', parentMessageId)
+          .order('created_at', { ascending: true })
+      ]);
       
-      if (error) throw error;
-      return data || [];
+      if (channelThreads.error && dmThreads.error) {
+        throw channelThreads.error || dmThreads.error;
+      }
+      
+      const allThreads = [
+        ...(channelThreads.data || []),
+        ...(dmThreads.data || [])
+      ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      
+      return allThreads;
     },
     enabled: !!parentMessageId,
   });
@@ -645,3 +676,6 @@ export const useDeleteMessage = () => {
     },
   });
 };
+
+// Export from unread messages hook
+export { useMarkAsRead } from './useUnreadMessages';

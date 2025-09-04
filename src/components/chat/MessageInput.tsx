@@ -10,13 +10,17 @@ import { useToast } from '../ui/use-toast';
 interface MessageInputProps {
   channelId?: string;
   recipientId?: string;
+  parentMessageId?: string;
   placeholder?: string;
+  className?: string;
 }
 
 const MessageInput: React.FC<MessageInputProps> = ({
   channelId,
   recipientId,
-  placeholder = "Type a message..."
+  parentMessageId,
+  placeholder = "Type a message...",
+  className = ""
 }) => {
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -58,6 +62,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         recipientId,
         messageType,
         fileUrl,
+        parentMessageId,
       });
 
       setMessage('');

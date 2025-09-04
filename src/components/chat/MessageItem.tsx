@@ -43,18 +43,22 @@ interface MessageItemProps {
     };
   };
   channelId?: string;
+  recipientId?: string;
   isThreadParent?: boolean;
   threadCount?: number;
   onReply?: () => void;
+  onOpenThread?: () => void;
   className?: string;
 }
 
 const MessageItem: React.FC<MessageItemProps> = ({
   message,
   channelId,
+  recipientId,
   isThreadParent = false,
   threadCount = 0,
   onReply,
+  onOpenThread,
   className = '',
 }) => {
   const [showReactions, setShowReactions] = useState(false);
@@ -290,10 +294,13 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
           {/* Thread Indicator */}
           {isThreadParent && threadCount > 0 && (
-            <div className="flex items-center space-x-2 mt-2 text-xs text-muted-foreground">
+            <button
+              onClick={onOpenThread}
+              className="flex items-center space-x-2 mt-2 text-xs text-primary hover:text-primary/80 transition-colors"
+            >
               <MessageSquare className="w-3 h-3" />
               <span>{threadCount} reply{threadCount !== 1 ? 'ies' : 'y'}</span>
-            </div>
+            </button>
           )}
         </div>
 
@@ -331,9 +338,9 @@ const MessageItem: React.FC<MessageItemProps> = ({
         </div>
       </div>
 
-      {/* Quick Reactions Bar - Only show on hover */}
-      <div className="absolute left-8 top-full mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-        <div className="flex items-center space-x-1 bg-background border rounded-md shadow-lg p-1">
+      {/* Quick Reactions Bar - Fixed positioning to not affect layout */}
+      <div className="absolute left-8 -top-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto z-50">
+        <div className="flex items-center space-x-1 bg-background border rounded-md shadow-lg p-1 backdrop-blur-sm">
           {quickReactions.map((emoji) => (
             <Button
               key={emoji}
@@ -382,6 +389,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
           }
         }}
         channelId={channelId}
+        recipientId={recipientId}
       />
     </div>
   );

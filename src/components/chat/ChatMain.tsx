@@ -3,7 +3,7 @@ import { Channel, ChatUser } from '../../types/chat';
 import { ChatView } from './ChatLayout';
 import { Button } from '../ui/button';
 import { ArrowLeft, Hash, User, Users, MessageSquare } from 'lucide-react';
-import MessageList from './MessageList';
+import MessageListWithThreads from './MessageListWithThreads';
 import MessageInput from './MessageInput';
 import ChatHeader from './ChatHeader';
 import ChannelMembersModal from './ChannelMembersModal';
@@ -109,10 +109,10 @@ const ChatMain: React.FC<ChatMainProps> = ({
         </div>
         
         {currentChannel && (
-          <MessageList channelId={currentChannel.id} />
+          <MessageListWithThreads channelId={currentChannel.id} />
         )}
         {currentUser && (
-          <MessageList userId={currentUser.id} />
+          <MessageListWithThreads userId={currentUser.id} />
         )}
       </div>
 
