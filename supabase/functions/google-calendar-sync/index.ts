@@ -28,29 +28,41 @@ serve(async (req) => {
   }
 
   try {
+    // Get JWT from request header for authentication
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: authHeader }
+        }
+      }
     )
 
     const { action, profile_id, calendar_id, timeMin, timeMax } = await req.json()
 
-    // Get active Google integration
-    const { data: integration } = await supabaseClient
-      .from('google_integrations')
-      .select('*')
-      .eq('profile_id', profile_id)
-      .eq('is_active', true)
+    // Get active Google integration using secure function
+    const { data: integration, error: integrationError } = await supabaseClient
+      .rpc('get_google_tokens_for_sync', { p_profile_id: profile_id })
       .single()
 
-    if (!integration) {
-      return new Response(JSON.stringify({ error: 'No active Google integration found' }), {
+    if (integrationError || !integration) {
+      console.error('Integration error:', integrationError)
+      return new Response(JSON.stringify({ error: 'No active Google integration found or unauthorized' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Check if token needs refresh
+    // Refresh access token if expired
     let accessToken = integration.access_token
     if (new Date(integration.expires_at) <= new Date()) {
       const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -64,24 +76,33 @@ serve(async (req) => {
         })
       })
 
-      const refreshData = await refreshResponse.json()
-      if (refreshData.error) {
-        return new Response(JSON.stringify({ error: 'Failed to refresh token' }), {
+      const tokenData = await refreshResponse.json()
+      if (tokenData.error) {
+        return new Response(JSON.stringify({ error: 'Failed to refresh token', details: tokenData.error }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })
       }
 
-      accessToken = refreshData.access_token
-      const newExpiresAt = new Date(Date.now() + refreshData.expires_in * 1000)
-      
-      await supabaseClient
+      // Update tokens in database (this will be restricted by RLS)
+      const { error: updateError } = await supabaseClient
         .from('google_integrations')
         .update({
-          access_token: accessToken,
-          expires_at: newExpiresAt.toISOString()
+          access_token: tokenData.access_token,
+          expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+          updated_at: new Date().toISOString()
         })
-        .eq('id', integration.id)
+        .eq('profile_id', profile_id)
+
+      if (updateError) {
+        console.error('Token update error:', updateError)
+        return new Response(JSON.stringify({ error: 'Failed to update tokens' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
+      accessToken = tokenData.access_token
     }
 
     if (action === 'sync_calendars') {
@@ -98,13 +119,23 @@ serve(async (req) => {
         })
       }
 
+      // Get user's organization_id
+      const { data: profileData } = await supabaseClient
+        .from('profiles')
+        .select('organization_id')
+        .eq('id', profile_id)
+        .single()
+
+      if (!profileData?.organization_id) {
+        return new Response(JSON.stringify({ error: 'User profile not found' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
+      }
+
       // Sync calendars to database
       const calendarsToSync = calendarsData.items.map((gcal: any) => ({
-        organization_id: (await supabaseClient
-          .from('profiles')
-          .select('organization_id')
-          .eq('id', profile_id)
-          .single()).data?.organization_id,
+        organization_id: profileData.organization_id,
         owner_id: profile_id,
         name: gcal.summary,
         description: gcal.description || null,
@@ -137,15 +168,17 @@ serve(async (req) => {
     }
 
     if (action === 'sync_events') {
-      // Get calendar info
-      const { data: calendar } = await supabaseClient
-        .from('calendars')
-        .select('*')
-        .eq('id', calendar_id)
+      // Get calendar info using secure function
+      const { data: calendar, error: calendarError } = await supabaseClient
+        .rpc('get_calendar_for_sync', { 
+          p_calendar_id: calendar_id, 
+          p_profile_id: profile_id 
+        })
         .single()
 
-      if (!calendar?.google_calendar_id) {
-        return new Response(JSON.stringify({ error: 'Calendar not found or not a Google calendar' }), {
+      if (calendarError || !calendar?.google_calendar_id) {
+        console.error('Calendar access error:', calendarError)
+        return new Response(JSON.stringify({ error: 'Calendar not found, not a Google calendar, or unauthorized' }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         })

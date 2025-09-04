@@ -1741,9 +1741,26 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: boolean
       }
+      get_calendar_for_sync: {
+        Args: { p_calendar_id: string; p_profile_id: string }
+        Returns: {
+          google_calendar_id: string
+          id: string
+          name: string
+          owner_id: string
+        }[]
+      }
       get_current_user_organization_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_google_tokens_for_sync: {
+        Args: { p_profile_id: string }
+        Returns: {
+          access_token: string
+          expires_at: string
+          refresh_token: string
+        }[]
       }
       update_task: {
         Args: {
