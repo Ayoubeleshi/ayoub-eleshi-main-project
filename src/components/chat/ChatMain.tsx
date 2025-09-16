@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Channel, ChatUser } from '../../types/chat';
 import { ChatView } from './ChatLayout';
 import { Button } from '../ui/button';
@@ -6,8 +7,9 @@ import { ArrowLeft, Hash, User, Users, MessageSquare } from 'lucide-react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import ChatHeader from './ChatHeader';
-import ChannelMembersModal from './ChannelMembersModal';
-import CallModal from './CallModal';
+import DeleteChannelModal from './DeleteChannelModal';
+import PinnedMessagesModal from './PinnedMessagesModal';
+import { useChannelMembers, usePinnedMessages } from '../../hooks/useChat';
 
 interface ChatMainProps {
   currentChannel: Channel | null;
@@ -22,13 +24,19 @@ const ChatMain: React.FC<ChatMainProps> = ({
   currentView,
   onBackToChannels,
 }) => {
-  const [showMembersModal, setShowMembersModal] = useState(false);
-  const [showCallModal, setShowCallModal] = useState(false);
-  const [callType, setCallType] = useState<'voice' | 'video'>('voice');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPinnedModal, setShowPinnedModal] = useState(false);
 
-  const handleStartCall = (type: 'voice' | 'video') => {
-    setCallType(type);
-    setShowCallModal(true);
+  // Get channel members and pinned messages
+  const { data: channelMembers = [] } = useChannelMembers(currentChannel?.id || '');
+  const { data: pinnedMessages = [] } = usePinnedMessages(currentChannel?.id || '');
+
+  const handleDeleteChannel = () => {
+    setShowDeleteModal(true);
+  };
+
+  const handleViewPinned = () => {
+    setShowPinnedModal(true);
   };
   if (currentView === 'channel' && !currentChannel) {
     return (
@@ -73,51 +81,61 @@ const ChatMain: React.FC<ChatMainProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-background h-full min-h-0">
-      {/* Header */}
-      <ChatHeader
-        channel={currentChannel ? {
-          id: currentChannel.id,
-          name: currentChannel.name,
-          description: currentChannel.description,
-          isPrivate: currentChannel.is_private,
-          memberCount: 0 // TODO: Add member count
-        } : undefined}
-        user={currentUser ? {
-          id: currentUser.id,
-          full_name: currentUser.full_name,
-          avatar_url: currentUser.avatar_url,
-          email: currentUser.email
-        } : undefined}
-        onSearch={() => {
-          // TODO: Implement search
-          console.log('Search clicked');
-        }}
-        onSettings={() => {
-          // TODO: Implement settings
-          console.log('Settings clicked');
-        }}
-        onManageMembers={() => setShowMembersModal(true)}
-        onStartCall={handleStartCall}
-      />
+    <div className="flex flex-col bg-slate-50 dark:bg-slate-900 h-full">
+      {/* Header - Fixed at top */}
+      <div className="flex-shrink-0">
+        <ChatHeader
+          channel={currentChannel ? {
+            id: currentChannel.id,
+            name: currentChannel.name,
+            description: currentChannel.description,
+            isPrivate: currentChannel.is_private,
+            memberCount: channelMembers.length,
+            pinnedCount: pinnedMessages.length
+          } : undefined}
+          user={currentUser ? {
+            id: currentUser.id,
+            full_name: currentUser.full_name,
+            avatar_url: currentUser.avatar_url,
+            email: currentUser.email
+          } : undefined}
+          onDeleteChannel={handleDeleteChannel}
+          onViewPinned={handleViewPinned}
+        />
+      </div>
 
-      {/* Messages - Takes up remaining space */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {/* Version indicator */}
-        <div className="text-xs text-muted-foreground px-4 py-1 bg-muted/20">
-          🚀 Version: Latest Deploy Test - {new Date().toLocaleTimeString()}
-        </div>
-        
-        {currentChannel && (
-          <MessageList channelId={currentChannel.id} />
-        )}
-        {currentUser && (
-          <MessageList userId={currentUser.id} />
-        )}
+      {/* Messages - Scrollable area that takes remaining space */}
+      <div className="main-chat-container flex-1 min-h-0">
+        <AnimatePresence mode="wait">
+          {currentChannel && (
+            <motion.div
+              key={`channel-${currentChannel.id}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="h-full"
+            >
+              <MessageList channelId={currentChannel.id} />
+            </motion.div>
+          )}
+          {currentUser && (
+            <motion.div
+              key={`user-${currentUser.id}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="h-full"
+            >
+              <MessageList userId={currentUser.id} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Message Input - Fixed at bottom */}
-      <div className="flex-shrink-0 border-t border-border">
+      <div className="flex-shrink-0">
         {currentChannel && (
           <MessageInput
             channelId={currentChannel.id}
@@ -133,26 +151,28 @@ const ChatMain: React.FC<ChatMainProps> = ({
       </div>
 
       {/* Modals */}
+
       {currentChannel && (
-        <ChannelMembersModal
-          open={showMembersModal}
-          onOpenChange={setShowMembersModal}
+        <DeleteChannelModal
+          open={showDeleteModal}
+          onOpenChange={setShowDeleteModal}
           channelId={currentChannel.id}
           channelName={currentChannel.name}
-          isAdmin={true} // TODO: Check if user is admin/creator
+          onChannelDeleted={() => {
+            // Go back to channel selection after deletion
+            onBackToChannels();
+          }}
         />
       )}
 
-      <CallModal
-        open={showCallModal}
-        onOpenChange={setShowCallModal}
-        channelId={currentChannel?.id}
-        channelName={currentChannel?.name}
-        recipientId={currentUser?.id}
-        recipientName={currentUser?.full_name}
-        recipientAvatar={currentUser?.avatar_url}
-        callType={callType}
-      />
+      {currentChannel && (
+        <PinnedMessagesModal
+          isOpen={showPinnedModal}
+          onClose={() => setShowPinnedModal(false)}
+          channelId={currentChannel.id}
+          channelName={currentChannel.name}
+        />
+      )}
     </div>
   );
 };

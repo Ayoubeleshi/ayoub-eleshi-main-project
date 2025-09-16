@@ -1,30 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useTasks, useCreateTask, useTeamMembers, Task, TaskFilters } from '@/hooks/useTasks';
-import { useProjects, useCreateProject } from '@/hooks/useProjects';
+import { useTasks, useDeleteTask, useTeamMembers, Task, TaskFilters } from '@/hooks/useTasks';
+import { useProjects, useDeleteProject } from '@/hooks/useProjects';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationCenter } from '@/components/NotificationCenter';
 import { 
   Plus, 
-  Search, 
-  Filter, 
   List, 
   Columns, 
-  Calendar, 
-  BarChart3,
   Folder,
-  User,
-  Tag,
-  Star,
-  Menu,
-  Settings,
-  ChevronDown,
-  X
+  Trash2,
+  Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -32,86 +22,101 @@ import { toast } from '@/hooks/use-toast';
 // Import view components
 import { TaskListView } from '@/components/tasks/views/TaskListView';
 import { TaskBoardView } from '@/components/tasks/views/TaskBoardView';
-import { TaskCalendarView } from '@/components/tasks/views/TaskCalendarView';
-import { TaskTimelineView } from '@/components/tasks/views/TaskTimelineView';
 import { ProjectTemplateModal } from '@/components/tasks/ProjectTemplateModal';
 import { QuickTaskForm } from '@/components/tasks/QuickTaskForm';
 
-type ViewType = 'list' | 'board' | 'calendar' | 'timeline';
+type ViewType = 'list' | 'board';
 
 export default function TasksPage() {
   const { profile } = useAuth();
   const [currentView, setCurrentView] = useState<ViewType>('board');
   const [compactMode, setCompactMode] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [filters, setFilters] = useState<TaskFilters>({});
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [showQuickTask, setShowQuickTask] = useState(false);
-  const [savedViews, setSavedViews] = useState<any[]>([]);
-  
-  const searchRef = useRef<HTMLInputElement>(null);
+  const [deleteTaskDialog, setDeleteTaskDialog] = useState<{ open: boolean; taskId: string | null }>({ open: false, taskId: null });
+  const [deleteProjectDialog, setDeleteProjectDialog] = useState<{ open: boolean; projectId: string | null }>({ open: false, projectId: null });
   
   // Data hooks
   const { data: projects = [] } = useProjects();
   const { data: teamMembers = [] } = useTeamMembers();
   const taskFilters: TaskFilters = {
-    ...filters,
     project_id: selectedProject || undefined
   };
-  const { data: tasks = [] } = useTasks(taskFilters);
   
-  // Keyboard shortcuts
+  const { data: tasks = [] } = useTasks(taskFilters);
+  const deleteTaskMutation = useDeleteTask();
+  const deleteProjectMutation = useDeleteProject();
+  
+  // Handle project deletion - reset selectedProject if it was deleted
   useEffect(() => {
-    const handleKeyboard = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return;
-      
-      switch (e.key.toLowerCase()) {
-        case 'n':
-          e.preventDefault();
-          setShowQuickTask(true);
-          break;
-        case '/':
-          e.preventDefault();
-          searchRef.current?.focus();
-          break;
-        case 'escape':
-          setFilters({});
-          setSelectedProject(null);
-          break;
+    if (selectedProject && projects.length > 0) {
+      const projectExists = projects.find(p => p.id === selectedProject);
+      if (!projectExists) {
+        setSelectedProject(null);
       }
-    };
+    }
+  }, [selectedProject, projects]);
+  
+  // Delete handlers
+  const handleDeleteTask = (taskId: string) => {
+    setDeleteTaskDialog({ open: true, taskId });
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    setDeleteProjectDialog({ open: true, projectId });
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!deleteTaskDialog.taskId) return;
     
-    document.addEventListener('keydown', handleKeyboard);
-    return () => document.removeEventListener('keydown', handleKeyboard);
-  }, []);
+    try {
+      await deleteTaskMutation.mutateAsync(deleteTaskDialog.taskId);
+    } catch (error) {
+      // Error handling is done in the mutation
+    }
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!deleteProjectDialog.projectId) return;
+    
+    const projectIdToDelete = deleteProjectDialog.projectId;
+    const wasSelectedProject = selectedProject === projectIdToDelete;
+    
+    try {
+      await deleteProjectMutation.mutateAsync(projectIdToDelete);
+      
+      // Reset selected project if it was the one being deleted
+      if (wasSelectedProject) {
+          setSelectedProject(null);
+      }
+      
+      toast({
+        title: 'Project deleted',
+        description: 'The project has been deleted successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete project.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const viewIcons = {
     list: List,
-    board: Columns,
-    calendar: Calendar,
-    timeline: BarChart3
+    board: Columns
   };
-
-  const priorityColors = {
-    low: 'bg-blue-100 text-blue-800',
-    medium: 'bg-yellow-100 text-yellow-800', 
-    high: 'bg-red-100 text-red-800'
-  };
-
-  const statusOptions = [
-    { value: 'not_started', label: 'To Do', color: 'bg-gray-100 text-gray-800' },
-    { value: 'in_progress', label: 'Doing', color: 'bg-blue-100 text-blue-800' },
-    { value: 'done', label: 'Done', color: 'bg-green-100 text-green-800' }
-  ];
 
   const renderCurrentView = () => {
     const commonProps = {
       tasks,
       compactMode,
-      filters,
+      filters: {},
       onTaskUpdate: () => {}, // Will implement optimistic updates
-      selectedProject
+      selectedProject,
+      onDeleteTask: handleDeleteTask
     };
 
     switch (currentView) {
@@ -119,311 +124,207 @@ export default function TasksPage() {
         return <TaskListView {...commonProps} />;
       case 'board':
         return <TaskBoardView {...commonProps} />;
-      case 'calendar':
-        return <TaskCalendarView {...commonProps} />;
-      case 'timeline':
-        return <TaskTimelineView {...commonProps} />;
     }
   };
 
   return (
-    <div className="h-screen flex bg-background">
-      {/* Sidebar */}
-      <div className={cn(
-        "border-r bg-card/50 backdrop-blur-sm transition-all duration-300",
-        sidebarOpen ? "w-64" : "w-12"
-      )}>
-        <div className="p-3 border-b">
+    <div className="h-screen flex flex-col bg-background">
+      {/* Common Header */}
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-14 items-center justify-between px-6">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-lg font-semibold text-foreground capitalize">
+              Tasks
+            </h2>
+            {selectedProject && (
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
+                {projects.find(p => p.id === selectedProject)?.name || 'Project'}
+              </Badge>
+            )}
+            <Badge variant="secondary" className="text-xs">
+              {tasks.length} tasks
+            </Badge>
+          </div>
+          <div className="flex items-center space-x-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="w-full justify-start"
-          >
-            <Menu className="h-4 w-4" />
-            {sidebarOpen && <span className="ml-2">Tasks</span>}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Search className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Search</span>
+              <kbd className="pointer-events-none ml-2 hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+                ⌘K
+              </kbd>
           </Button>
+            <NotificationCenter />
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      {/* Tasks Header */}
+      <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold">
+                {selectedProject 
+                  ? projects.find(p => p.id === selectedProject)?.name || 'Project'
+                  : 'All Tasks'
+                }
+              </h1>
+            </div>
         </div>
 
-        {sidebarOpen && (
-          <div className="p-3 space-y-4">
-            {/* Quick Views */}
-            <div>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Quick Views
-              </h3>
-              <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            {/* View Toggle */}
+            <div className="flex items-center bg-muted rounded-lg p-1">
+              {Object.entries(viewIcons).map(([view, Icon]) => (
                 <Button
-                  variant="ghost"
+                  key={view}
+                  variant={currentView === view ? 'default' : 'ghost'}
                   size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => {
-                    setSelectedProject(null);
-                    setFilters({ assignee: profile?.id });
-                  }}
+                  onClick={() => setCurrentView(view as ViewType)}
+                  className="h-8 px-3"
                 >
-                  <User className="h-3 w-3 mr-2" />
-                  My Tasks
-                  <Badge variant="secondary" className="ml-auto h-5 px-2 text-xs">
-                    {tasks.filter(t => t.assigned_to === profile?.id).length}
-                  </Badge>
+                  <Icon className="w-4 h-4" />
                 </Button>
-                 <Button
-                   variant="ghost"
-                   size="sm"
-                   className="w-full justify-start h-8 text-xs"
-                   onClick={() => {
-                     setFilters({});
-                   }}
-                 >
-                   <Calendar className="h-3 w-3 mr-2" />
-                   Due Today
-                   <Badge variant="secondary" className="ml-auto h-5 px-2 text-xs">
-                     {tasks.filter(t => {
-                       if (!t.due_date) return false;
-                       const today = new Date().toDateString();
-                       return new Date(t.due_date).toDateString() === today;
-                     }).length}
-                   </Badge>
+              ))}
+            </div>
+
+
+            {/* Add Task */}
+            <Button onClick={() => setShowQuickTask(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Task
                  </Button>
               </div>
+        </div>
+      </div>
+
+      {/* Main Layout */}
+      <div className="flex flex-1 min-h-0">
+        {/* Projects Sidebar */}
+        <div className="w-72 bg-surface/50 border-r border-border/50 flex flex-col">
+          <div className="p-4 space-y-4 overflow-auto">
+            {/* Quick Actions */}
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  console.log('Opening project modal');
+                  setShowProjectModal(true);
+                }}
+                className="w-full"
+                size="sm"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Project
+              </Button>
             </div>
 
             {/* Projects */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  Projects
-                </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground">Projects</h3>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0"
                   onClick={() => setShowProjectModal(true)}
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="w-3 h-3" />
                 </Button>
               </div>
-              <div className="space-y-1">
-                <Button
-                  variant={!selectedProject ? "secondary" : "ghost"}
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs"
-                  onClick={() => setSelectedProject(null)}
-                >
-                  <Folder className="h-3 w-3 mr-2" />
-                  All Projects
-                  <Badge variant="secondary" className="ml-auto h-5 px-2 text-xs">
-                    {tasks.length}
-                  </Badge>
-                </Button>
-                {projects.map(project => (
-                  <Button
-                    key={project.id}
-                    variant={selectedProject === project.id ? "secondary" : "ghost"}
-                    size="sm"
-                    className="w-full justify-start h-8 text-xs"
-                    onClick={() => setSelectedProject(project.id)}
-                  >
-                    <Folder className="h-3 w-3 mr-2" />
-                    {project.name}
-                    <Badge variant="secondary" className="ml-auto h-5 px-2 text-xs">
-                      {tasks.filter(t => t.project_id === project.id).length}
-                    </Badge>
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            {/* Saved Views */}
-            <div>
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                Saved Views
-              </h3>
-              <div className="space-y-1">
-                {savedViews.map(view => (
-                  <Button
-                    key={view.id}
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start h-8 text-xs"
-                  >
-                    <Star className="h-3 w-3 mr-2" />
-                    {view.name}
-                  </Button>
-                ))}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start h-8 text-xs text-muted-foreground"
-                >
-                  <Plus className="h-3 w-3 mr-2" />
-                  Save current view
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <div className="border-b bg-background/95 backdrop-blur-sm p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button
-                variant="default"
-                size="sm"
-                className="h-8 bg-gradient-brand hover:opacity-90"
-                onClick={() => setShowQuickTask(true)}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                New Task
-              </Button>
               
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={() => setShowProjectModal(true)}
-              >
-                <Folder className="h-3 w-3 mr-1" />
-                New Project
-              </Button>
-
-              <div className="relative">
-                <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  ref={searchRef}
-                  placeholder="Search tasks... (Press / to focus)"
-                  className="h-8 w-64 pl-7 text-xs"
-                  value={filters.search || ''}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                />
-              </div>
-
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8">
-                    <Filter className="h-3 w-3 mr-1" />
-                    Filters
-                    {Object.keys(filters).filter(k => k !== 'search' && filters[k as keyof TaskFilters]).length > 0 && (
-                      <Badge variant="secondary" className="ml-1 h-5 px-1">
-                        {Object.keys(filters).filter(k => k !== 'search' && filters[k as keyof TaskFilters]).length}
-                      </Badge>
-                    )}
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-80">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Filters</h3>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-xs font-medium">Status</label>
-                        <Select
-                          value={filters.status?.[0] || ''}
-                          onValueChange={(value) => setFilters({ ...filters, status: value ? [value] : undefined })}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue placeholder="Any status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map(status => (
-                              <SelectItem key={status.value} value={status.value}>
-                                {status.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+              <div className="space-y-1">
+                <button
+                  onClick={() => setSelectedProject(null)}
+                  className={cn(
+                    'w-full text-left p-2 rounded-md text-sm transition-colors',
+                    !selectedProject 
+                      ? 'bg-primary/10 text-primary border border-primary/20' 
+                      : 'hover:bg-accent'
+                  )}
+                >
+                  All Projects
+                </button>
+                
+                {projects.map((project) => (
+                  <div key={project.id} className="flex items-center group">
+                    <button
+                    onClick={() => setSelectedProject(project.id)}
+                      className={cn(
+                        'flex-1 text-left p-2 rounded-md text-sm transition-colors',
+                        selectedProject === project.id
+                          ? 'bg-primary/10 text-primary border border-primary/20'
+                          : 'hover:bg-accent'
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Folder className="w-4 h-4" />
+                        <span className="truncate">{project.name}</span>
                       </div>
-
-                       <div>
-                         <label className="text-xs font-medium">Assignee</label>
-                         <Select
-                           value={filters.assignee || ''}
-                           onValueChange={(value) => setFilters({ ...filters, assignee: value || undefined })}
-                         >
-                           <SelectTrigger className="h-8">
-                             <SelectValue placeholder="Anyone" />
-                           </SelectTrigger>
-                           <SelectContent>
-                             {teamMembers.map(member => (
-                               <SelectItem key={member.id} value={member.id}>
-                                 {member.full_name || member.email}
-                               </SelectItem>
-                             ))}
-                           </SelectContent>
-                         </Select>
-                       </div>
-
+                    </button>
+                    
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        className="w-full"
-                        onClick={() => setFilters({})}
+                        className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject(project.id);
+                        }}
                       >
-                        Clear Filters
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   </div>
-                </SheetContent>
-              </Sheet>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* View Switcher */}
-              <div className="flex items-center border rounded-lg p-1">
-                {(Object.keys(viewIcons) as ViewType[]).map(view => {
-                  const Icon = viewIcons[view];
-                  return (
-                    <Button
-                      key={view}
-                      variant={currentView === view ? "secondary" : "ghost"}
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => setCurrentView(view)}
-                    >
-                      <Icon className="h-3 w-3" />
-                    </Button>
-                  );
-                })}
+                ))}
               </div>
-
-              <Button
-                variant={compactMode ? "secondary" : "outline"}
-                size="sm"
-                className="h-8"
-                onClick={() => setCompactMode(!compactMode)}
-              >
-                Compact
-              </Button>
-
-              <Button variant="outline" size="sm" className="h-8">
-                <Settings className="h-3 w-3" />
-              </Button>
             </div>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-auto">
+        {/* Main Content */}
+        <div className="flex-1 overflow-hidden">
           {renderCurrentView()}
         </div>
       </div>
 
       {/* Modals */}
+      <QuickTaskForm 
+        open={showQuickTask}
+        onOpenChange={setShowQuickTask}
+        projectId={selectedProject}
+      />
+
       <ProjectTemplateModal 
         open={showProjectModal}
         onOpenChange={setShowProjectModal}
       />
       
-      <QuickTaskForm
-        open={showQuickTask}
-        onOpenChange={setShowQuickTask}
-        initialStatus="not_started"
-        projectId={selectedProject}
+      {/* Confirmation Dialogs */}
+      <ConfirmationDialog
+        open={deleteTaskDialog.open}
+        onOpenChange={(open) => setDeleteTaskDialog({ open, taskId: null })}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        confirmText="Delete Task"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDeleteTask}
+      />
+
+      <ConfirmationDialog
+        open={deleteProjectDialog.open}
+        onOpenChange={(open) => setDeleteProjectDialog({ open, projectId: null })}
+        title="Delete Project"
+        description="Are you sure you want to delete this project? All tasks in this project will also be deleted. This action cannot be undone."
+        confirmText="Delete Project"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDeleteProject}
       />
     </div>
   );

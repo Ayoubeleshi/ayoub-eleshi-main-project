@@ -15,6 +15,7 @@ import Onboarding from "./pages/Onboarding";
 import BoardsPage from "./pages/BoardsPage";
 import BoardDetail from "./pages/BoardDetail";
 import TasksPage from "./pages/TasksPage";
+import EmailPage from "./pages/EmailPage";
 import LandingPage from "./components/LandingPage";
 
 const queryClient = new QueryClient();
@@ -39,12 +40,16 @@ const App = () => (
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/tasks" element={
                 <AuthGuard>
-                  <TasksPage />
+                  <DashboardLayout>
+                    <TasksPage />
+                  </DashboardLayout>
                 </AuthGuard>
               } />
               <Route path="/tasks/boards" element={
                 <AuthGuard>
-                  <TasksPage />
+                  <DashboardLayout>
+                    <TasksPage />
+                  </DashboardLayout>
                 </AuthGuard>
               } />
               <Route path="/tasks/boards/:projectId" element={
@@ -71,7 +76,7 @@ const App = () => (
               <Route path="/email" element={
                 <AuthGuard>
                   <DashboardLayout>
-                    <Index hideSidebar={true} />
+                    <EmailPage />
                   </DashboardLayout>
                 </AuthGuard>
               } />

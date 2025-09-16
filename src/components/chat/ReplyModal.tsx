@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useSendThreadMessage } from '@/hooks/useChat';
@@ -57,55 +57,56 @@ const ReplyModal: React.FC<ReplyModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            Reply to message
-            <Button variant="ghost" size="sm" onClick={onClose}>
+      <DialogContent className="sm:max-w-2xl border-0 shadow-none bg-transparent p-0">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl">
+          {/* Simple Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+            <div>
+              <h3 className="text-sm font-medium text-slate-900 dark:text-slate-100">Reply</h3>
+              <p className="sr-only">Reply to message from {parentMessage.sender.full_name}</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
               <X className="h-4 w-4" />
             </Button>
-          </DialogTitle>
-        </DialogHeader>
-        
-        {/* Original Message */}
-        <div className="bg-muted/30 border-l-4 border-primary/30 pl-4 py-2 mb-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Avatar className="w-5 h-5">
-              <AvatarImage src={parentMessage.sender.avatar_url} />
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                {parentMessage.sender.full_name?.charAt(0)?.toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm font-medium">{parentMessage.sender.full_name}</span>
           </div>
-          <p className="text-sm text-muted-foreground line-clamp-3">
-            {parentMessage.content}
-          </p>
-        </div>
-
-        {/* Reply Input */}
-        <div className="space-y-3">
-          <Textarea
-            placeholder="Type your reply..."
-            value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
-            onKeyDown={handleKeyDown}
-            className="min-h-[100px]"
-            disabled={isPending}
-          />
           
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSendReply} 
-              disabled={!replyContent.trim() || isPending}
-              className="gap-2"
-            >
-              <Send className="h-4 w-4" />
-              {isPending ? 'Sending...' : 'Send Reply'}
-            </Button>
+          {/* Original Message - Simple Quote */}
+          <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/50 border-l-4 border-purple-500">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                {parentMessage.sender.full_name}
+              </span>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {parentMessage.content}
+            </p>
+          </div>
+
+          {/* Simple Reply Input */}
+          <div className="p-4">
+            <Textarea
+              placeholder="Type a reply..."
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="min-h-[60px] border border-slate-200 dark:border-slate-700 rounded-lg resize-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              disabled={isPending}
+              autoFocus
+            />
+            
+            <div className="flex justify-end gap-2 mt-3">
+              <Button variant="outline" onClick={onClose} disabled={isPending} size="sm">
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSendReply} 
+                disabled={!replyContent.trim() || isPending}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                size="sm"
+              >
+                {isPending ? 'Sending...' : 'Send'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

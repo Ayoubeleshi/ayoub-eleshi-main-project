@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '../ui/button';
 import { useSendMessage, useSetTypingIndicator, useFileUpload } from '../../hooks/useChat';
 import { Send, Paperclip, Smile, Search, Upload, X } from 'lucide-react';
@@ -101,32 +102,49 @@ const MessageInput: React.FC<MessageInputProps> = ({
   };
 
   return (
-    <div className="px-4 py-2">
+    <div className="chatbox-container px-6 py-1 pb-4 bg-slate-50 dark:bg-slate-900">
       {/* File Upload Progress */}
       {isUploading && (
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
-          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <motion.div 
+          className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-300 mb-3"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
           <span>Uploading file... {Math.round(uploadProgress)}%</span>
-        </div>
+        </motion.div>
       )}
 
       {/* Selected File Display */}
       {selectedFile && (
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground mb-2">
+        <motion.div 
+          className="flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-300 mb-3 p-2 bg-slate-50 dark:bg-slate-700 rounded-lg"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.2 }}
+        >
           <span>📎 {selectedFile.name}</span>
-          {uploadedFileUrl && <span className="text-green-500">✓ Uploaded</span>}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSelectedFile(null);
-              setUploadedFileUrl(null);
-            }}
-            className="h-6 w-6 p-0"
+          {uploadedFileUrl && <span className="text-green-600 dark:text-green-400">✓ Uploaded</span>}
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <X className="h-3 w-3" />
-          </Button>
-        </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSelectedFile(null);
+                setUploadedFileUrl(null);
+              }}
+              className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-600 ml-auto"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* File Upload Modal */}
@@ -134,7 +152,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
         <FileUpload
           onFileSelect={handleFileSelect}
           maxSize={10}
-          className="border rounded-lg p-4 mb-2"
+          className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-3 bg-white dark:bg-slate-800"
         />
       )}
 

@@ -227,3 +227,45 @@ export function useCreateProject() {
     },
   });
 }
+
+export function useDeleteProject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (projectId: string) => {
+      console.log('useDeleteProject: Deleting project:', projectId);
+      
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', projectId);
+
+      if (error) {
+        console.error('useDeleteProject: Supabase error:', error);
+        throw new Error(error.message);
+      }
+
+      return projectId;
+    },
+    onSuccess: (projectId) => {
+      console.log('useDeleteProject: Successfully deleted project:', projectId);
+      
+      // Invalidate and refetch projects
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      
+      // Also invalidate tasks since they might be affected
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      
+      // Toast will be handled by the component
+      console.log('useDeleteProject: Queries invalidated successfully');
+    },
+    onError: (error: any) => {
+      console.error('useDeleteProject: Error in mutation:', error);
+      toast({
+        title: 'Failed to delete project',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}

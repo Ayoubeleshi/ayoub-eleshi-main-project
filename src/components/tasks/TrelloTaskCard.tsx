@@ -1,10 +1,11 @@
 import { format } from 'date-fns';
-import { Calendar, MessageSquare, Paperclip, User, CheckSquare } from 'lucide-react';
+import { Calendar, MessageSquare, Paperclip, User, CheckSquare, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task } from '@/hooks/useTasks';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
@@ -12,21 +13,27 @@ interface TrelloTaskCardProps {
   task: Task;
   onClick: () => void;
   compact?: boolean;
+  onDelete?: (taskId: string) => void;
 }
 
-const priorityColors = {
-  low: 'bg-success/20 border-l-success',
-  medium: 'bg-warning/20 border-l-warning',
-  high: 'bg-destructive/20 border-l-destructive',
+// Priority color dots
+const priorityDotColors: Record<string, string> = {
+  low: 'bg-emerald-500',
+  medium: 'bg-amber-500',
+  high: 'bg-rose-500',
 };
 
-const statusColors = {
-  not_started: 'bg-muted/50',
-  in_progress: 'bg-primary/10',
-  done: 'bg-success/10',
+// Status pill styles with good contrast in both themes
+const statusColors: Record<string, string> = {
+  not_started:
+    'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100',
+  in_progress:
+    'bg-indigo-200 text-indigo-900 dark:bg-indigo-700/60 dark:text-indigo-50',
+  done:
+    'bg-emerald-200 text-emerald-900 dark:bg-emerald-700/60 dark:text-emerald-50',
 };
 
-export function TrelloTaskCard({ task, onClick, compact = false }: TrelloTaskCardProps) {
+export function TrelloTaskCard({ task, onClick, compact = false, onDelete }: TrelloTaskCardProps) {
   const {
     attributes,
     listeners,
@@ -51,36 +58,71 @@ export function TrelloTaskCard({ task, onClick, compact = false }: TrelloTaskCar
     <Card
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
       className={cn(
-        "group relative cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
-        "bg-card border-l-4 rounded-lg p-3 space-y-3",
-        priorityColors[task.priority || 'medium'],
-        isDragging && "opacity-60 rotate-1 scale-105 shadow-lg z-50"
+        'group relative cursor-pointer transition-all duration-200',
+        'bg-card rounded-xl p-4 space-y-4 ring-1 ring-border hover:ring-2 hover:ring-primary/30 hover:shadow-md',
+        isDragging && 'rotate-1 scale-105 shadow-lg ring-2 ring-primary/40 z-50'
       )}
-      onClick={onClick}
+      onClick={(e) => {
+        console.log('TrelloTaskCard: Click event triggered, isDragging:', isDragging);
+        // Only trigger click if not dragging
+        if (!isDragging) {
+          console.log('TrelloTaskCard: Calling onClick handler');
+          onClick();
+        } else {
+          console.log('TrelloTaskCard: Click ignored due to dragging');
+        }
+      }}
     >
-      {/* Labels/Tags */}
-      <div className="flex items-center gap-1 flex-wrap">
-        <Badge 
-          variant="secondary" 
-          className={cn("text-xs px-2 py-0.5 rounded-full", statusColors[task.status])}
+      {/* Drag Handle, Priority Dot and Labels/Tags */}
+      <div className="flex items-center justify-between gap-1 flex-wrap">
+        <div 
+          className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted/50 rounded"
+          {...attributes}
+          {...listeners}
         >
-          {task.status === 'not_started' ? 'To Do' : 
-           task.status === 'in_progress' ? 'In Progress' : 'Done'}
-        </Badge>
-        {task.priority === 'high' && (
-          <Badge variant="outline" className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive border-destructive/20">
-            🔥 High
+          <div className="w-4 h-4 flex flex-col gap-0.5">
+            <div className="w-full h-0.5 bg-muted-foreground/30"></div>
+            <div className="w-full h-0.5 bg-muted-foreground/30"></div>
+            <div className="w-full h-0.5 bg-muted-foreground/30"></div>
+          </div>
+        </div>
+        <div className={cn('w-2 h-2 rounded-full ml-1', priorityDotColors[task.priority || 'medium'])} />
+        
+        <div className="flex items-center gap-1 flex-wrap">
+          <Badge 
+            variant="secondary" 
+            className={cn('text-xs px-2 py-0.5 rounded-full', statusColors[task.status])}
+          >
+            {task.status === 'not_started' ? 'To Do' : 
+             task.status === 'in_progress' ? 'In Progress' : 'Done'}
           </Badge>
+          {task.priority === 'high' && (
+            <Badge variant="outline" className="text-xs px-2 py-0.5 bg-destructive/10 text-destructive border-destructive/20">
+              🔥 High
+            </Badge>
+          )}
+        </div>
+        
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task.id);
+            }}
+            className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground opacity-60 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
         )}
       </div>
 
       {/* Title */}
       <h4 className={cn(
-        "font-semibold text-card-foreground group-hover:text-primary transition-colors",
-        compact ? "text-sm leading-tight" : "text-base leading-snug"
+        'font-semibold text-card-foreground group-hover:text-primary transition-colors',
+        compact ? 'text-sm leading-tight' : 'text-lg leading-snug'
       )}>
         {task.title}
       </h4>

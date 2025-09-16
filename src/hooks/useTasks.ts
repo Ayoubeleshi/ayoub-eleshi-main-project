@@ -216,19 +216,33 @@ export function useDeleteTask() {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
+      console.log('useDeleteTask: Attempting to delete task:', taskId);
+      
       const { data, error } = await supabase.rpc('delete_task', {
         p_task_id: taskId,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('useDeleteTask: RPC error:', error);
+        throw error;
+      }
+      
+      console.log('useDeleteTask: Successfully deleted task:', data);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, taskId) => {
+      console.log('useDeleteTask: Mutation successful, invalidating queries for task:', taskId);
+      // Invalidate all task-related queries
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      toast({ title: 'Task deleted successfully' });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      
+      toast({ 
+        title: 'Task deleted successfully',
+        description: 'The task has been removed from the board.'
+      });
     },
     onError: (error: any) => {
-      console.error('Error deleting task:', error);
+      console.error('useDeleteTask: Error in mutation:', error);
       toast({
         title: 'Failed to delete task',
         description: error.message,

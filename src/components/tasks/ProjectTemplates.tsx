@@ -127,7 +127,7 @@ interface ProjectTemplatesSelectorProps {
 
 export function ProjectTemplatesSelector({ onSelectTemplate, selectedTemplate }: ProjectTemplatesSelectorProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {/* Custom/Empty Template */}
       <Card 
         className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${

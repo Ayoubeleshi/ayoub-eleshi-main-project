@@ -59,9 +59,9 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ className = '' }) => {
   });
 
   return (
-    <div className={`flex h-full bg-background ${className}`}>
+    <div className={`flex h-full bg-slate-50 dark:bg-slate-900 overflow-hidden ${className}`}>
       {/* Chat Sidebar */}
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 h-full">
         <ChatSidebar
           channels={channels}
           users={users}
@@ -78,7 +78,7 @@ const ChatLayout: React.FC<ChatLayoutProps> = ({ className = '' }) => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 min-w-0 h-full">
+      <div className="flex-1 min-w-0 h-full overflow-hidden">
         <ChatMain
           currentChannel={currentChannel}
           currentUser={currentUser}

@@ -281,7 +281,7 @@ const Index: React.FC<IndexProps> = ({ hideSidebar = false }) => {
   return (
     <div className="min-h-screen bg-gradient-surface flex">
       {!hideSidebar && <Sidebar activeSection={activeSection} onSectionChange={handleSectionChange} />}
-      <main className="flex-1 overflow-y-auto">
+      <main className={`flex-1 ${activeSection === 'chat' || activeSection === 'email' ? '' : 'overflow-y-auto'}`}>
         {/* Enhanced Header */}
         <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex h-14 items-center justify-between px-6">
@@ -314,7 +314,7 @@ const Index: React.FC<IndexProps> = ({ hideSidebar = false }) => {
           </div>
         </header>
         
-        <div className={activeSection === 'chat' || activeSection === 'email' ? 'h-[calc(100vh-3.5rem)]' : 'p-6'}>
+        <div className={activeSection === 'chat' || activeSection === 'email' ? 'h-[calc(100vh-3.5rem)] flex flex-col' : 'p-6'}>
           {renderSection()}
         </div>
       </main>

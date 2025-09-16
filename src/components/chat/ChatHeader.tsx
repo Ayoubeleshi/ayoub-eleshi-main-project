@@ -1,24 +1,12 @@
 import React, { useState } from 'react';
 import { 
-  Search, 
-  Bell, 
-  Settings, 
   MoreHorizontal, 
   Hash, 
   Lock, 
-  Users,
   Pin,
-  Info,
-  Phone,
-  Video,
-  UserPlus,
-  Wifi,
-  WifiOff,
-  AlertCircle
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   DropdownMenu, 
@@ -27,8 +15,6 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
-import { useAuth } from '@/hooks/useAuth';
-import { useChatRealtime } from '@/hooks/useChat';
 
 interface ChatHeaderProps {
   channel?: {
@@ -36,7 +22,6 @@ interface ChatHeaderProps {
     name: string;
     description?: string;
     isPrivate: boolean;
-    memberCount?: number;
   };
   user?: {
     id: string;
@@ -44,132 +29,69 @@ interface ChatHeaderProps {
     avatar_url?: string;
     email: string;
   };
-  onSearch?: () => void;
-  onSettings?: () => void;
-  onManageMembers?: () => void;
-  onStartCall?: (type: 'voice' | 'video') => void;
+  onDeleteChannel?: () => void;
+  onViewPinned?: () => void;
   className?: string;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   channel,
   user,
-  onSearch,
-  onSettings,
-  onManageMembers,
-  onStartCall,
+  onDeleteChannel,
+  onViewPinned,
   className = '',
 }) => {
-  const { profile } = useAuth();
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // Get connection status for real-time
-  const { connectionStatus, useFallback } = useChatRealtime(
-    channel?.id, 
-    user?.id
-  );
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim() && onSearch) {
-      onSearch();
-    }
-  };
-
-  // Connection status indicator
-  const getConnectionIcon = () => {
-    switch (connectionStatus) {
-      case 'connected':
-        return <Wifi className="w-3 h-3 text-green-500" />;
-      case 'connecting':
-        return <Wifi className="w-3 h-3 text-yellow-500 animate-pulse" />;
-      case 'error':
-        return <WifiOff className="w-3 h-3 text-red-500" />;
-      case 'disconnected':
-        return <WifiOff className="w-3 h-3 text-gray-500" />;
-      default:
-        return <AlertCircle className="w-3 h-3 text-gray-500" />;
-    }
-  };
-
-  const getConnectionText = () => {
-    if (useFallback) return 'Polling';
-    switch (connectionStatus) {
-      case 'connected':
-        return 'Connected';
-      case 'connecting':
-        return 'Connecting...';
-      case 'error':
-        return 'Connection Error';
-      case 'disconnected':
-        return 'Disconnected';
-      default:
-        return 'Unknown';
-    }
-  };
 
   return (
-    <div className={`border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 ${className}`}>
-      <div className="flex items-center justify-between px-3 py-2">
+    <div className={`border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 ${className}`}>
+      <div className="flex items-center justify-between px-4 py-3">
         {/* Left Side - Channel Info */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-3">
           {channel ? (
             <>
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                  {channel.isPrivate ? (
-                    <Lock className="w-3 h-3 text-white" />
-                  ) : (
-                    <Hash className="w-3 h-3 text-white" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">
-                    {channel.isPrivate ? '🔒 ' : '#'}{channel.name}
-                  </h2>
-                  {channel.description && (
-                    <p className="text-xs text-muted-foreground">
-                      {channel.description}
-                    </p>
-                  )}
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2">
+                  <span className="text-slate-400 text-lg">#</span>
+                  <div>
+                    <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                      {channel.name}
+                    </h2>
+                    {channel.description && (
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        {channel.description}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
               
-              {/* Channel Stats */}
-              <div className="hidden md:flex items-center space-x-3 text-xs text-muted-foreground">
-                <div className="flex items-center space-x-1">
-                  <Users className="w-3 h-3" />
-                  <span>{channel.memberCount || 0}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Pin className="w-3 h-3" />
-                  <span>0 pinned</span>
-                </div>
-              </div>
             </>
           ) : user ? (
             <>
-              <Avatar className="w-7 h-7">
-                <AvatarImage src={user.avatar_url} />
-                <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white font-medium text-xs">
-                  {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={user.avatar_url} />
+                  <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white font-medium text-sm">
+                    {user.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+              </div>
               <div>
-                <h2 className="text-sm font-semibold text-foreground">
+                <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                   {user.full_name}
                 </h2>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {user.email}
                 </p>
               </div>
             </>
           ) : (
-            <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center">
-                <Hash className="w-3 h-3 text-muted-foreground" />
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-md bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                <Hash className="w-4 h-4 text-slate-400" />
               </div>
-              <h2 className="text-sm font-semibold text-foreground">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                 Select a channel or user
               </h2>
             </div>
@@ -177,98 +99,33 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         </div>
 
         {/* Right Side - Actions */}
-        <div className="flex items-center space-x-1">
-          {/* Connection Status Indicator */}
-          <div className="flex items-center space-x-1 px-2 py-1 rounded-md bg-muted/30">
-            {getConnectionIcon()}
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              {getConnectionText()}
-            </span>
-          </div>
+        <div className="flex items-center space-x-2">
 
-          {/* Search - Hidden on mobile */}
-          <form onSubmit={handleSearch} className="relative hidden lg:block">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-48 pl-7 h-7 bg-muted/50 border-0 focus:bg-background focus:ring-1 focus:ring-ring text-xs"
-            />
-          </form>
-
-          {/* Mobile search button */}
-          <Button variant="ghost" size="sm" className="lg:hidden h-7 w-7 p-0">
-            <Search className="w-3 h-3" />
-          </Button>
-
-          {/* Call buttons */}
-          {(channel || user) && onStartCall && (
-            <>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => onStartCall('voice')}
-                className="h-7 w-7 p-0"
-                title="Start voice call"
-              >
-                <Phone className="w-3 h-3" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => onStartCall('video')}
-                className="h-7 w-7 p-0"
-                title="Start video call"
-              >
-                <Video className="w-3 h-3" />
-              </Button>
-            </>
-          )}
-
-          {/* Manage members (channel only) */}
-          {channel && onManageMembers && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onManageMembers}
-              className="h-7 w-7 p-0"
-              title="Manage members"
-            >
-              <UserPlus className="w-3 h-3" />
-            </Button>
-          )}
-
-          {/* Settings */}
-          <Button variant="ghost" size="sm" onClick={onSettings} className="h-7 w-7 p-0">
-            <Settings className="w-3 h-3" />
-          </Button>
 
           {/* More Options */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                <MoreHorizontal className="w-3 h-3" />
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700">
+                <MoreHorizontal className="w-4 h-4 text-slate-500" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <Search className="w-4 h-4 mr-2" />
-                Search in conversation
-              </DropdownMenuItem>
-              <DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={onViewPinned} className="text-slate-700 dark:text-slate-300">
                 <Pin className="w-4 h-4 mr-2" />
                 View pinned items
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Users className="w-4 h-4 mr-2" />
-                View members
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Settings className="w-4 h-4 mr-2" />
-                Channel settings
-              </DropdownMenuItem>
+              {channel && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-900/20"
+                    onClick={onDeleteChannel}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete channel
+                  </DropdownMenuItem>
+                </>
+              )}
               {channel?.isPrivate && (
                 <DropdownMenuItem className="text-red-600">
                   <Lock className="w-4 h-4 mr-2" />

@@ -20,6 +20,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       setActiveSection('dashboard');
     } else if (path.startsWith('/chat')) {
       setActiveSection('chat');
+    } else if (path.startsWith('/email')) {
+      setActiveSection('email');
     } else if (path.startsWith('/calendar')) {
       setActiveSection('calendar');
     } else if (path.startsWith('/files')) {
@@ -45,10 +47,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     // Navigate to appropriate route
     if (section === 'dashboard') {
       navigate('/dashboard');
-    } else if (section === 'tasks') {
-      navigate('/tasks/boards');
     } else if (section === 'chat') {
       navigate('/chat');
+    } else if (section === 'email') {
+      navigate('/email');
+    } else if (section === 'tasks') {
+      navigate('/tasks/boards');
     } else if (section === 'calendar') {
       navigate('/calendar');
     } else if (section === 'files') {

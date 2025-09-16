@@ -20,6 +20,8 @@ export function ProjectTemplateModal({ open, onOpenChange }: ProjectTemplateModa
   const [description, setDescription] = useState('');
   
   const createProjectMutation = useCreateProject();
+  
+  console.log('ProjectTemplateModal render - open:', open);
 
   const handleTemplateNext = () => {
     if (selectedTemplate) {
@@ -76,27 +78,28 @@ export function ProjectTemplateModal({ open, onOpenChange }: ProjectTemplateModa
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-hidden">
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden w-[95vw] sm:w-full">
         <DialogHeader>
           <DialogTitle>
             {step === 'template' ? 'Choose Project Template' : 'Project Details'}
           </DialogTitle>
-        </DialogHeader>
-        
-        {step === 'template' ? (
-          <div className="space-y-6">
+          {step === 'template' && (
             <p className="text-sm text-muted-foreground">
               Select a template to get started quickly, or create a custom project from scratch.
             </p>
-            
-            <div className="max-h-[500px] overflow-y-auto pr-2">
+          )}
+        </DialogHeader>
+        
+        {step === 'template' ? (
+          <div className="space-y-4">
+            <div className="max-h-[60vh] overflow-y-auto pr-2">
               <ProjectTemplatesSelector
                 selectedTemplate={selectedTemplate}
                 onSelectTemplate={setSelectedTemplate}
               />
             </div>
             
-            <div className="flex justify-end gap-2 pt-4 border-t">
+            <div className="flex justify-end gap-3 pt-4 border-t">
               <Button variant="outline" onClick={handleClose}>
                 Cancel
               </Button>

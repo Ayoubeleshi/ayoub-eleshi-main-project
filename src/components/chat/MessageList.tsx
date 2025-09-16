@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useChannelMessages, useDirectMessages, useChatRealtime } from '../../hooks/useChat';
 import { useAuth } from '../../hooks/useAuth';
-import { ScrollArea } from '../ui/scroll-area';
 import MessageItem from './MessageItem';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -26,20 +26,22 @@ const MessageList: React.FC<MessageListProps> = ({ channelId, userId }) => {
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current && messages.length > 0) {
-      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (scrollContainer) {
-        // Only auto-scroll if user is already near the bottom (like Slack behavior)
-        const isNearBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 100;
-        
-        if (isNearBottom) {
-          // Use requestAnimationFrame for better timing with DOM updates
-          requestAnimationFrame(() => {
-            scrollContainer.scrollTop = scrollContainer.scrollHeight;
-          });
-        }
+      // Check if user is near the bottom (within 150px) before auto-scrolling
+      const isNearBottom = scrollRef.current.scrollTop + scrollRef.current.clientHeight >= scrollRef.current.scrollHeight - 150;
+      
+      // Only auto-scroll if user is near the bottom or if it's the first message
+      if (isNearBottom || messages.length === 1) {
+        requestAnimationFrame(() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+              top: scrollRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        });
       }
     }
-  }, [messages.length, messages]); // React to both length changes and message updates
+  }, [messages.length]);
 
   if (isLoading) {
     return (
@@ -67,12 +69,9 @@ const MessageList: React.FC<MessageListProps> = ({ channelId, userId }) => {
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
           <div className="text-4xl mb-4">💬</div>
-          <h3 className="text-lg font-medium mb-2">No messages yet</h3>
+          <h3 className="text-lg font-medium mb-2">Start the conversation</h3>
           <p className="text-muted-foreground">
-            {channelId 
-              ? "Be the first to start the conversation in this channel!"
-              : "Start a conversation by sending a message!"
-            }
+            Send a message below to get started
           </p>
         </div>
       </div>
@@ -80,7 +79,7 @@ const MessageList: React.FC<MessageListProps> = ({ channelId, userId }) => {
   }
 
   // Group messages by date and sort by created_at (oldest to newest - chronological order)
-  // This ensures newest messages appear at the bottom like Slack
+  // This ensures older messages appear at the top and newer messages at the bottom
   const sortedMessages = [...messages].sort((a, b) => 
     new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
@@ -95,27 +94,28 @@ const MessageList: React.FC<MessageListProps> = ({ channelId, userId }) => {
   }, {} as Record<string, any[]>);
 
   return (
-    <ScrollArea className="h-full w-full" ref={scrollRef}>
-      <div 
-        className="flex flex-col px-2 py-1 justify-end min-h-full"
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          minHeight: '100%'
-        }}
-      >
+    <div 
+      ref={scrollRef}
+      className="h-full w-full overflow-y-auto overflow-x-hidden"
+    >
+      <div className="flex flex-col px-4 py-3 bg-slate-50 dark:bg-slate-900">
         {Object.entries(groupedMessages).map(([date, dateMessages]) => (
-          <div key={date} className="mb-3 last:mb-0">
+          <div key={date} className="mb-4 last:mb-0">
             {/* Date separator */}
-            <div className="flex items-center justify-center mb-2">
-              <div className="bg-muted px-2 py-0.5 rounded-full text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(date), { addSuffix: true })}
+            <div className="flex items-center justify-center my-4">
+              <div className="flex items-center space-x-3">
+                <div className="h-px bg-slate-200/20 dark:bg-slate-700/20 flex-1"></div>
+                <div className="bg-slate-50 dark:bg-slate-900 px-3 py-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  {formatDistanceToNow(new Date(date), { addSuffix: true })}
+                </div>
+                <div className="h-px bg-slate-200/20 dark:bg-slate-700/20 flex-1"></div>
               </div>
             </div>
             
             {/* Messages for this date */}
-            <div className="space-y-2">
-              {(dateMessages as any[]).map((message, index) => {
+            <div className="space-y-0">
+              <AnimatePresence>
+                {(dateMessages as any[]).map((message, index) => {
                 // Safety check for message object
                 if (!message || !message.id) {
                   console.warn('Invalid message object:', message);
@@ -123,35 +123,69 @@ const MessageList: React.FC<MessageListProps> = ({ channelId, userId }) => {
                 }
                 
                 const isOwnMessage = message.sender_id === profile?.id;
+                const previousMessage = index > 0 ? dateMessages[index - 1] : null;
                 const showAvatar = index === 0 || 
                   dateMessages[index - 1]?.sender_id !== message.sender_id;
                 
+                // Check if messages should be grouped (same author within 5 minutes)
+                const shouldGroupWithPrevious = (currentMessage: any, prevMessage: any) => {
+                  if (!prevMessage) return false;
+                  if (currentMessage.sender_id !== prevMessage.sender_id) return false;
+                  
+                  const currentTime = new Date(currentMessage.created_at).getTime();
+                  const previousTime = new Date(prevMessage.created_at).getTime();
+                  const timeDiff = currentTime - previousTime;
+                  
+                  return timeDiff <= 5 * 60 * 1000; // 5 minutes in milliseconds
+                };
+                
+                const isGrouped = shouldGroupWithPrevious(message, previousMessage);
+                const isFirstInGroup = !isGrouped;
+                
                 return (
-                  <MessageItem
+                  <motion.div
                     key={message.id}
-                    message={{
-                      id: message.id,
-                      content: message.content,
-                      message_type: message.message_type as 'text' | 'file' | 'image' | 'link',
-                      file_url: message.file_url,
-                      created_at: message.created_at,
-                      sender: {
-                        id: message.sender?.id || message.sender_id || '',
-                        full_name: message.sender?.full_name || 'Unknown User',
-                        avatar_url: message.sender?.avatar_url,
-                        email: message.sender?.email || ''
-                      }
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ 
+                      duration: 0.2, 
+                      ease: "easeOut",
+                      delay: index * 0.02 // Stagger animation for multiple messages
                     }}
-                    channelId={channelId}
-                    className={isOwnMessage ? 'ml-auto' : ''}
-                  />
+                    layout
+                  >
+                    <MessageItem
+                      message={{
+                        id: message.id,
+                        content: message.content,
+                        message_type: message.message_type as 'text' | 'file' | 'image' | 'link',
+                        file_url: message.file_url,
+                        created_at: message.created_at,
+                        is_pinned: message.is_pinned,
+                        sender: {
+                          id: message.sender?.id || message.sender_id || '',
+                          full_name: message.sender?.full_name || 'Unknown User',
+                          avatar_url: message.sender?.avatar_url,
+                          email: message.sender?.email || ''
+                        }
+                      }}
+                      channelId={channelId}
+                      className={isOwnMessage ? 'ml-auto' : ''}
+                      showAvatar={showAvatar}
+                      isGrouped={isGrouped}
+                      isFirstInGroup={isFirstInGroup}
+                      density="normal"
+                    />
+                  </motion.div>
                 );
-              })}
+                })}
+              </AnimatePresence>
             </div>
           </div>
         ))}
       </div>
-    </ScrollArea>
+    </div>
   );
 };
 

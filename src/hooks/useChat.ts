@@ -98,6 +98,74 @@ export const useOrganizationUsers = () => {
   });
 };
 
+export const useChannelMembers = (channelId: string) => {
+  return useQuery({
+    queryKey: ['channel-members', channelId],
+    queryFn: async () => {
+      if (!channelId) throw new Error('No channel ID');
+      
+      const { data, error } = await supabase
+        .from('channel_members')
+        .select(`
+          channel_id,
+          user_id,
+          is_moderator,
+          joined_at,
+          profiles!user_id(id, full_name, avatar_url, email)
+        `)
+        .eq('channel_id', channelId);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!channelId,
+  });
+};
+
+export const usePinnedMessages = (channelId: string) => {
+  return useQuery({
+    queryKey: ['pinned-messages', channelId],
+    queryFn: async () => {
+      if (!channelId) throw new Error('No channel ID');
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          sender:profiles!sender_id(id, full_name, avatar_url, email)
+        `)
+        .eq('channel_id', channelId)
+        .eq('is_pinned', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!channelId,
+  });
+};
+
+export const usePinMessage = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ messageId, isPinned }: { messageId: string; isPinned: boolean }) => {
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_pinned: isPinned })
+        .eq('id', messageId);
+      
+      if (error) throw error;
+      return { messageId, isPinned };
+    },
+    onSuccess: (data) => {
+      // Invalidate related queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['pinned-messages'] });
+      queryClient.invalidateQueries({ queryKey: ['channel-messages'] });
+    },
+  });
+};
+
 export const useSendMessage = () => {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
@@ -387,18 +455,36 @@ export const useThreadMessages = (parentMessageId: string) => {
       if (!parentMessageId) return [];
       
       const { data, error } = await supabase
-        .from('messages')
+        .from('thread_messages')
         .select(`
           *,
           sender:profiles!sender_id(id, full_name, avatar_url, email)
         `)
-        .eq('reply_to_message_id', parentMessageId)
+        .eq('parent_message_id', parentMessageId)
         .order('created_at', { ascending: true });
       
       if (error) throw error;
       return data || [];
     },
     enabled: !!parentMessageId,
+  });
+};
+
+export const useThreadCount = (messageId: string) => {
+  return useQuery({
+    queryKey: ['thread-count', messageId],
+    queryFn: async () => {
+      if (!messageId) return 0;
+      
+      const { count, error } = await supabase
+        .from('thread_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('parent_message_id', messageId);
+      
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!messageId,
   });
 };
 
@@ -424,43 +510,22 @@ export const useSendThreadMessage = () => {
     }) => {
       if (!profile?.id) throw new Error('No profile ID');
       
-      if (channelId) {
-        // Send threaded message to channel
-        const { data, error } = await supabase
-          .from('messages')
-          .insert({
-            channel_id: channelId,
-            sender_id: profile.id,
-            content,
-            message_type: messageType,
-            file_url: fileUrl,
-            reply_to_message_id: parentMessageId,
-          })
-          .select()
-          .single();
-        
-        if (error) throw error;
-        return data;
-      } else if (recipientId) {
-        // Send threaded direct message
-        const { data, error } = await supabase
-          .from('direct_messages')
-          .insert({
-            sender_id: profile.id,
-            recipient_id: recipientId,
-            content,
-            message_type: messageType,
-            file_url: fileUrl,
-            reply_to_message_id: parentMessageId,
-          })
-          .select()
-          .single();
-        
-        if (error) throw error;
-        return data;
-      } else {
-        throw new Error('Either channelId or recipientId must be provided');
-      }
+      // Send threaded message using thread_messages table
+      const { data, error } = await supabase
+        .from('thread_messages')
+        .insert({
+          parent_message_id: parentMessageId,
+          channel_id: channelId || null,
+          sender_id: profile.id,
+          content,
+          message_type: messageType,
+          file_url: fileUrl,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
     },
     onSuccess: (data, variables) => {
       // Invalidate thread messages and main messages
