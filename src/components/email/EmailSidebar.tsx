@@ -16,16 +16,9 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { useEmailAccounts, useEmailFolders, EmailAccount, EmailFolder } from '@/hooks/useEmail';
 
 export type EmailView = 'inbox' | 'compose' | 'accounts' | 'settings';
-
-interface EmailAccount {
-  id: string;
-  email: string;
-  provider: 'gmail' | 'outlook';
-  isActive: boolean;
-  unreadCount: number;
-}
 
 interface EmailSidebarProps {
   currentView: EmailView;
@@ -33,6 +26,10 @@ interface EmailSidebarProps {
   onCompose: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  selectedAccountId?: string;
+  onAccountSelect?: (accountId: string) => void;
+  selectedFolderId?: string;
+  onFolderSelect?: (folderId: string) => void;
 }
 
 const EmailSidebar: React.FC<EmailSidebarProps> = ({
@@ -41,33 +38,14 @@ const EmailSidebar: React.FC<EmailSidebarProps> = ({
   onCompose,
   collapsed,
   onToggleCollapse,
+  selectedAccountId,
+  onAccountSelect,
+  selectedFolderId,
+  onFolderSelect,
 }) => {
-  // Mock data - will be replaced with real data from hooks
-  const [accounts] = useState<EmailAccount[]>([
-    {
-      id: '1',
-      email: 'john.doe@gmail.com',
-      provider: 'gmail',
-      isActive: true,
-      unreadCount: 5
-    },
-    {
-      id: '2',
-      email: 'john.doe@company.com',
-      provider: 'outlook',
-      isActive: true,
-      unreadCount: 12
-    }
-  ]);
-
-  const folders = [
-    { id: 'inbox', name: 'Inbox', icon: Mail, count: 17, isActive: true },
-    { id: 'sent', name: 'Sent', icon: Send, count: 0, isActive: false },
-    { id: 'drafts', name: 'Drafts', icon: FileText, count: 3, isActive: false },
-    { id: 'starred', name: 'Starred', icon: Star, count: 8, isActive: false },
-    { id: 'archive', name: 'Archive', icon: Archive, count: 0, isActive: false },
-    { id: 'trash', name: 'Trash', icon: Trash2, count: 0, isActive: false },
-  ];
+  // Fetch real data from hooks
+  const { data: accounts = [], isLoading: accountsLoading } = useEmailAccounts();
+  const { data: folders = [], isLoading: foldersLoading } = useEmailFolders(selectedAccountId);
 
   const getProviderIcon = (provider: string) => {
     switch (provider) {
@@ -81,7 +59,26 @@ const EmailSidebar: React.FC<EmailSidebarProps> = ({
   };
 
   const getTotalUnreadCount = () => {
-    return accounts.reduce((sum, account) => sum + account.unreadCount, 0);
+    return folders.reduce((sum, folder) => sum + folder.unread_count, 0);
+  };
+
+  const getFolderIcon = (type: string) => {
+    switch (type) {
+      case 'inbox':
+        return Mail;
+      case 'sent':
+        return Send;
+      case 'drafts':
+        return FileText;
+      case 'trash':
+        return Trash2;
+      case 'archive':
+        return Archive;
+      case 'spam':
+        return Trash2;
+      default:
+        return Mail;
+    }
   };
 
   return (
@@ -126,33 +123,34 @@ const EmailSidebar: React.FC<EmailSidebarProps> = ({
             Accounts
           </h3>
           <div className="space-y-1">
-            {accounts.map((account) => (
-              <motion.div
-                key={account.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.1 }}
-              >
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start h-8 px-2 text-sm",
-                    account.isActive && "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
-                  )}
-                  onClick={() => onViewChange('inbox')}
+            {accountsLoading ? (
+              <div className="text-center py-2 text-sm text-slate-500">Loading accounts...</div>
+            ) : accounts.length === 0 ? (
+              <div className="text-center py-2 text-sm text-slate-500">No accounts connected</div>
+            ) : (
+              accounts.map((account) => (
+                <motion.div
+                  key={account.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.1 }}
                 >
-                  <div className="flex items-center space-x-2 flex-1 min-w-0">
-                    {getProviderIcon(account.provider)}
-                    <span className="truncate">{account.email}</span>
-                    {account.unreadCount > 0 && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        {account.unreadCount}
-                      </Badge>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start h-8 px-2 text-sm",
+                      selectedAccountId === account.id && "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
                     )}
-                  </div>
-                </Button>
-              </motion.div>
-            ))}
+                    onClick={() => onAccountSelect?.(account.id)}
+                  >
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      {getProviderIcon(account.provider)}
+                      <span className="truncate">{account.email}</span>
+                    </div>
+                  </Button>
+                </motion.div>
+              ))
+            )}
           </div>
         </div>
       )}
@@ -165,40 +163,46 @@ const EmailSidebar: React.FC<EmailSidebarProps> = ({
           </h3>
         )}
         <div className="space-y-1">
-          {folders.map((folder) => {
-            const Icon = folder.icon;
-            return (
-              <motion.div
-                key={folder.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ duration: 0.1 }}
-              >
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start h-8 px-2 text-sm",
-                    folder.isActive && "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
-                  )}
-                  onClick={() => onViewChange(folder.id as EmailView)}
+          {foldersLoading ? (
+            <div className="text-center py-2 text-sm text-slate-500">Loading folders...</div>
+          ) : folders.length === 0 ? (
+            <div className="text-center py-2 text-sm text-slate-500">No folders found</div>
+          ) : (
+            folders.map((folder) => {
+              const Icon = getFolderIcon(folder.type);
+              return (
+                <motion.div
+                  key={folder.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.1 }}
                 >
-                  <div className="flex items-center space-x-2 flex-1 min-w-0">
-                    <Icon className="w-4 h-4 flex-shrink-0" />
-                    {!collapsed && (
-                      <>
-                        <span className="truncate">{folder.name}</span>
-                        {folder.count > 0 && (
-                          <Badge variant="secondary" className="ml-auto text-xs">
-                            {folder.count}
-                          </Badge>
-                        )}
-                      </>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start h-8 px-2 text-sm",
+                      selectedFolderId === folder.id && "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
                     )}
-                  </div>
-                </Button>
-              </motion.div>
-            );
-          })}
+                    onClick={() => onFolderSelect?.(folder.id)}
+                  >
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      {!collapsed && (
+                        <>
+                          <span className="truncate">{folder.name}</span>
+                          {folder.unread_count > 0 && (
+                            <Badge variant="secondary" className="ml-auto text-xs">
+                              {folder.unread_count}
+                            </Badge>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </Button>
+                </motion.div>
+              );
+            })
+          )}
         </div>
       </div>
 

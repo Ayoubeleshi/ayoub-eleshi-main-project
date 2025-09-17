@@ -33,6 +33,8 @@ import {
   SelectValue 
 } from '../ui/select';
 import { cn } from '@/lib/utils';
+import { useEmailAccounts, useEmailAccountActions } from '@/hooks/useEmail';
+import { useEmailOAuth } from '@/hooks/useEmailOAuth';
 
 interface EmailAccount {
   id: string;
@@ -49,34 +51,10 @@ interface EmailAccountManagerProps {
 }
 
 const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => {
-  const [accounts, setAccounts] = useState<EmailAccount[]>([
-    {
-      id: '1',
-      email: 'john.doe@gmail.com',
-      provider: 'gmail',
-      isActive: true,
-      isConnected: true,
-      lastSync: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-      unreadCount: 5
-    },
-    {
-      id: '2',
-      email: 'john.doe@company.com',
-      provider: 'outlook',
-      isActive: true,
-      isConnected: true,
-      lastSync: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      unreadCount: 12
-    },
-    {
-      id: '3',
-      email: 'john.personal@outlook.com',
-      provider: 'outlook',
-      isActive: false,
-      isConnected: false,
-      unreadCount: 0
-    }
-  ]);
+  // Fetch real data from hooks
+  const { data: accounts = [], isLoading } = useEmailAccounts();
+  const { deleteAccount } = useEmailAccountActions();
+  const { connectGmail, connectOutlook } = useEmailOAuth();
 
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [newAccount, setNewAccount] = useState({
@@ -107,62 +85,44 @@ const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => 
     }
   };
 
-  const handleAddAccount = () => {
+  const handleAddAccount = async () => {
     if (!newAccount.email.trim()) return;
 
-    const account: EmailAccount = {
-      id: Date.now().toString(),
-      email: newAccount.email,
-      provider: newAccount.provider,
-      isActive: true,
-      isConnected: false,
-      unreadCount: 0
-    };
-
-    setAccounts(prev => [...prev, account]);
-    setNewAccount({ provider: 'gmail', email: '', password: '' });
-    setShowAddAccount(false);
-  };
-
-  const handleToggleAccount = (accountId: string) => {
-    setAccounts(prev => 
-      prev.map(account => 
-        account.id === accountId 
-          ? { ...account, isActive: !account.isActive }
-          : account
-      )
-    );
+    try {
+      if (newAccount.provider === 'gmail') {
+        await connectGmail.mutateAsync();
+      } else if (newAccount.provider === 'outlook') {
+        await connectOutlook.mutateAsync();
+      }
+      
+      setNewAccount({ provider: 'gmail', email: '', password: '' });
+      setShowAddAccount(false);
+    } catch (error) {
+      console.error('Failed to connect account:', error);
+    }
   };
 
   const handleDeleteAccount = (accountId: string) => {
-    setAccounts(prev => prev.filter(account => account.id !== accountId));
+    deleteAccount.mutate(accountId);
   };
 
-  const handleConnectAccount = (accountId: string) => {
-    setAccounts(prev => 
-      prev.map(account => 
-        account.id === accountId 
-          ? { ...account, isConnected: true, lastSync: new Date() }
-          : account
-      )
-    );
+  const handleConnectAccount = async (provider: 'gmail' | 'outlook') => {
+    try {
+      if (provider === 'gmail') {
+        await connectGmail.mutateAsync();
+      } else if (provider === 'outlook') {
+        await connectOutlook.mutateAsync();
+      }
+    } catch (error) {
+      console.error('Failed to connect account:', error);
+    }
   };
 
-  const handleSyncAccount = (accountId: string) => {
-    // TODO: Implement actual sync
-    setAccounts(prev => 
-      prev.map(account => 
-        account.id === accountId 
-          ? { ...account, lastSync: new Date() }
-          : account
-      )
-    );
-  };
-
-  const formatLastSync = (lastSync?: Date) => {
+  const formatLastSync = (lastSync?: string) => {
     if (!lastSync) return 'Never';
     const now = new Date();
-    const diff = now.getTime() - lastSync.getTime();
+    const syncDate = new Date(lastSync);
+    const diff = now.getTime() - syncDate.getTime();
     const minutes = Math.floor(diff / (1000 * 60));
     
     if (minutes < 1) return 'Just now';
@@ -277,8 +237,13 @@ const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => 
 
       {/* Account List */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-4">
-          {accounts.map((account) => (
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <div className="text-slate-500">Loading accounts...</div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {accounts.map((account) => (
             <motion.div
               key={account.id}
               initial={{ opacity: 0, y: 10 }}
@@ -287,7 +252,7 @@ const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => 
             >
               <Card className={cn(
                 "transition-all duration-200",
-                account.isActive ? "border-purple-200 dark:border-purple-700" : "border-slate-200 dark:border-slate-700"
+                account.is_active ? "border-purple-200 dark:border-purple-700" : "border-slate-200 dark:border-slate-700"
               )}>
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
@@ -302,7 +267,7 @@ const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => 
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      {account.isConnected ? (
+                      {account.access_token ? (
                         <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                           <Check className="w-3 h-3 mr-1" />
                           Connected
@@ -313,24 +278,6 @@ const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => 
                           Not Connected
                         </Badge>
                       )}
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleAccount(account.id)}
-                        className={cn(
-                          "h-8 w-8 p-0",
-                          account.isActive 
-                            ? "text-purple-600 hover:text-purple-700" 
-                            : "text-slate-400 hover:text-slate-600"
-                        )}
-                      >
-                        {account.isActive ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <X className="w-4 h-4" />
-                        )}
-                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -339,45 +286,22 @@ const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => 
                   <div className="flex items-center justify-between text-sm text-slate-600 dark:text-slate-400">
                     <div className="flex items-center space-x-4">
                       <span>
-                        Last sync: {formatLastSync(account.lastSync)}
+                        Last sync: {formatLastSync(account.last_sync_at)}
                       </span>
-                      {account.unreadCount > 0 && (
-                        <Badge variant="outline" className="text-xs">
-                          {account.unreadCount} unread
-                        </Badge>
-                      )}
                     </div>
                     
                     <div className="flex items-center space-x-1">
-                      {account.isConnected && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSyncAccount(account.id)}
-                          className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </Button>
-                      )}
-                      
-                      {!account.isConnected && (
+                      {!account.access_token && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleConnectAccount(account.id)}
+                          onClick={() => handleConnectAccount(account.provider)}
                           className="h-8 px-3 text-xs"
+                          disabled={connectGmail.isPending || connectOutlook.isPending}
                         >
                           Connect
                         </Button>
                       )}
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      >
-                        <Settings className="w-4 h-4" />
-                      </Button>
                       
                       <Button
                         variant="ghost"
@@ -392,27 +316,28 @@ const EmailAccountManager: React.FC<EmailAccountManagerProps> = ({ onBack }) => 
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
-          
-          {accounts.length === 0 && (
-            <div className="text-center py-12">
-              <Mail className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
-                No email accounts
-              </h3>
-              <p className="text-slate-500 dark:text-slate-400 mb-4">
-                Add your first email account to start managing emails.
-              </p>
-              <Button
-                onClick={() => setShowAddAccount(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Account
-              </Button>
-            </div>
-          )}
-        </div>
+            ))}
+            
+            {accounts.length === 0 && (
+              <div className="text-center py-12">
+                <Mail className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
+                  No email accounts
+                </h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-4">
+                  Add your first email account to start managing emails.
+                </p>
+                <Button
+                  onClick={() => setShowAddAccount(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Account
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );

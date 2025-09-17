@@ -20,6 +20,8 @@ const EmailLayout: React.FC<EmailLayoutProps> = ({ className = '' }) => {
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>();
+  const [selectedFolderId, setSelectedFolderId] = useState<string | undefined>();
 
   const handleEmailSelect = (emailId: string) => {
     setSelectedEmail(emailId);
@@ -46,6 +48,10 @@ const EmailLayout: React.FC<EmailLayoutProps> = ({ className = '' }) => {
           onCompose={handleCompose}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          selectedAccountId={selectedAccountId}
+          onAccountSelect={setSelectedAccountId}
+          selectedFolderId={selectedFolderId}
+          onFolderSelect={setSelectedFolderId}
         />
       </div>
 
@@ -105,6 +111,7 @@ const EmailLayout: React.FC<EmailLayoutProps> = ({ className = '' }) => {
                 {/* Email List */}
                 <div className="w-1/2 border-r border-slate-200 dark:border-slate-700">
                   <EmailList
+                    folderId={selectedFolderId}
                     onEmailSelect={handleEmailSelect}
                     selectedEmailId={selectedEmail}
                     searchQuery={searchQuery}

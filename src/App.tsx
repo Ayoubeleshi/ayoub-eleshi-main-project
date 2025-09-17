@@ -16,6 +16,7 @@ import BoardsPage from "./pages/BoardsPage";
 import BoardDetail from "./pages/BoardDetail";
 import TasksPage from "./pages/TasksPage";
 import EmailPage from "./pages/EmailPage";
+import EmailOAuthCallback from "./pages/EmailOAuthCallback";
 import LandingPage from "./components/LandingPage";
 
 const queryClient = new QueryClient();
@@ -130,6 +131,7 @@ const App = () => (
                 </AuthGuard>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/email/oauth/:provider/callback" element={<EmailOAuthCallback />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
